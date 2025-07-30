@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from "react";
 
 export default function DashboardSkeleton() {
-  const [businessName, setBusinessName] = useState("...");
+  const [business, setBusiness] = useState({
+    businessName: "...",
+    logoUrl: "/logo.png"
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/business")
       .then(res => res.json())
       .then(data => {
-        setBusinessName(data.businessName || "Business");
+        setBusiness({
+          businessName: data.businessName || "Business",
+          logoUrl: data.logoUrl || "/logo.png"
+        });
         setLoading(false);
       })
       .catch(() => {
-        setBusinessName("Business");
+        setBusiness({
+          businessName: "Business",
+          logoUrl: "/logo.png"
+        });
         setLoading(false);
       });
   }, []);
@@ -42,13 +51,23 @@ export default function DashboardSkeleton() {
       }}>
         <div>
           <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 5 }}>
-            Good morning, {loading ? "..." : businessName}!
+            Good morning, {loading ? "..." : business.businessName}!
           </div>
           <div style={{ fontSize: 15, color: "#888" }}>
             Today is {TODAY}
           </div>
         </div>
-        <img src="/logo.png" alt="Logo" style={{ height: 44, objectFit: "contain" }} />
+        <img
+          src={business.logoUrl}
+          alt="Logo"
+          style={{
+            width: 300,
+            height: 300,
+            objectFit: "contain",
+            borderRadius: 12,
+            background: "#fff"
+          }}
+        />
       </div>
 
       {/* Main Grid */}
