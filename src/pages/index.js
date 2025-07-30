@@ -61,8 +61,8 @@ export default function DashboardSkeleton() {
           src={business.logoUrl}
           alt="Logo"
           style={{
-            width: 300,
-            height: 300,
+            width: 150,
+            height: 150,
             objectFit: "contain",
             borderRadius: 12,
             background: "#fff"
