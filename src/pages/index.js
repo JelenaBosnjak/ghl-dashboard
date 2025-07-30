@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 export default function DashboardSkeleton() {
   const [business, setBusiness] = useState({
     businessName: "...",
-    logoUrl: "/logo.png"
+    logoUrl: "/logo.png" // always use the logo from the public folder
   });
   const [loading, setLoading] = useState(true);
 
@@ -13,7 +13,7 @@ export default function DashboardSkeleton() {
       .then(data => {
         setBusiness({
           businessName: data.businessName || "Business",
-          logoUrl: data.logoUrl || "/logo.png"
+          logoUrl: "/logo.png" // always use the local logo
         });
         setLoading(false);
       })
@@ -61,8 +61,8 @@ export default function DashboardSkeleton() {
           src={business.logoUrl}
           alt="Logo"
           style={{
-            width: 150,
-            height: 150,
+            width: 100,
+            height: 100,
             objectFit: "contain",
             borderRadius: 12,
             background: "#fff"
