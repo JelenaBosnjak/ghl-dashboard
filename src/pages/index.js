@@ -1,10 +1,27 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export default function DashboardSkeleton() {
-  // Constants (replace with real values/data fetching later)
-  const BUSINESS_NAME = "Your Business";
-  const LOGO_URL = "/logo.png";
-  const TODAY = "July 23, 2025";
+  const [businessName, setBusinessName] = useState("...");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/business")
+      .then(res => res.json())
+      .then(data => {
+        setBusinessName(data.businessName || "Business");
+        setLoading(false);
+      })
+      .catch(() => {
+        setBusinessName("Business");
+        setLoading(false);
+      });
+  }, []);
+
+  const TODAY = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
 
   return (
     <div style={{
@@ -25,13 +42,13 @@ export default function DashboardSkeleton() {
       }}>
         <div>
           <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 5 }}>
-            Good morning, {BUSINESS_NAME}!
+            Good morning, {loading ? "..." : businessName}!
           </div>
           <div style={{ fontSize: 15, color: "#888" }}>
             Today is {TODAY}
           </div>
         </div>
-        <img src={LOGO_URL} alt="Logo" style={{ height: 44, objectFit: "contain" }} />
+        <img src="/logo.png" alt="Logo" style={{ height: 44, objectFit: "contain" }} />
       </div>
 
       {/* Main Grid */}
