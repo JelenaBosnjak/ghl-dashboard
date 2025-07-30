@@ -20,10 +20,9 @@ export default async function handler(req, res) {
     }
 
     const data = await ghlRes.json();
-    // Use legalBusinessName if exists, otherwise fallback to name
-    res.status(200).json({
-      businessName: data.legalBusinessName || data.name || "Business"
-    });
+    // Use business.name if exists, otherwise fallback to name
+    const businessName = data.business?.name || data.name || "Business";
+    res.status(200).json({ businessName });
   } catch (e) {
     res.status(500).json({ error: "Server error" });
   }
