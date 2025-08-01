@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import AppointmentsList from "../components/AppointmentsList";
 
 export default function DashboardSkeleton() {
   const [business, setBusiness] = useState({
@@ -10,6 +11,8 @@ export default function DashboardSkeleton() {
   // Appointments state
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [appointmentsHasMore, setAppointmentsHasMore] = useState(false);
 
   useEffect(() => {
     fetch("/api/business")
@@ -30,18 +33,35 @@ export default function DashboardSkeleton() {
       });
   }, []);
 
-  useEffect(() => {
-    fetch("/api/appointments")
+  // Appointments fetching with pagination (load more)
+  const fetchAppointments = useCallback((page = 1, append = false) => {
+    setAppointmentsLoading(true);
+    fetch(`/api/appointments?page=${page}&limit=25`)
       .then(res => res.json())
       .then(data => {
-        setAppointments(Array.isArray(data.appointments) ? data.appointments : []);
+        setAppointments(prev =>
+          append ? [...prev, ...(data.appointments || [])] : (data.appointments || [])
+        );
+        setAppointmentsHasMore(!!data.hasMore);
         setAppointmentsLoading(false);
       })
       .catch(() => {
         setAppointments([]);
+        setAppointmentsHasMore(false);
         setAppointmentsLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchAppointments(1, false);
+    setAppointmentsPage(1);
+  }, [fetchAppointments]);
+
+  const handleLoadMore = () => {
+    const nextPage = appointmentsPage + 1;
+    setAppointmentsPage(nextPage);
+    fetchAppointments(nextPage, true);
+  };
 
   const TODAY = new Date().toLocaleDateString("en-US", {
     year: "numeric",
@@ -95,45 +115,13 @@ export default function DashboardSkeleton() {
         gridTemplateColumns: "1fr 1fr",
         gap: 32
       }}>
-        {/* Appointments */}
-        <div style={{
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 1px 5px rgba(30,34,90,0.05)",
-          padding: "24px"
-        }}>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>Appointments</div>
-          {appointmentsLoading ? (
-            <div>Loading appointments...</div>
-          ) : (
-            <>
-              {appointments.length === 0 ? (
-                <div style={{ color: "#aaa", fontSize: 15 }}>No appointments found.</div>
-              ) : (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {appointments.map((appt, idx) => (
-                    <li key={appt.id || idx} style={{
-                      padding: "8px 0",
-                      borderBottom: idx !== appointments.length - 1 ? "1px solid #ececec" : "none"
-                    }}>
-                      <span style={{ fontWeight: 600 }}>
-                        {appt.title || appt.name || `Appointment #${idx + 1}`}
-                      </span>
-                      <span style={{ color: "#555", marginLeft: 8 }}>
-                        {appt.date ? new Date(appt.date).toLocaleString() : ""}
-                      </span>
-                      {appt.client && (
-                        <span style={{ color: "#888", marginLeft: 8 }}>
-                          (Client: {appt.client})
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </div>
+        {/* Appointments with Load More */}
+        <AppointmentsList
+          appointments={appointments}
+          loading={appointmentsLoading}
+          hasMore={appointmentsHasMore}
+          onLoadMore={handleLoadMore}
+        />
         {/* New Leads */}
         <div style={{
           background: "#fff",

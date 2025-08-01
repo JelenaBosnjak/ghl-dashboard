@@ -1,80 +1,64 @@
-import React, { useEffect, useState } from "react";
+// This API route fetches all contacts in paginated batches,
+// then for each contact, fetches their appointments, and aggregates them.
+// It supports ?page=1&limit=25 pagination (default 1/25).
+// "Load More" is supported via frontend by incrementing the page param.
 
-export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default async function handler(req, res) {
+  const API_KEY = process.env.API_KEY;
+  const LOCATION_ID = process.env.LOCATION_ID;
 
-  useEffect(() => {
-    fetch("/api/appointments")
-      .then(res => res.json())
-      .then(data => {
-        setAppointments(Array.isArray(data.appointments) ? data.appointments : []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setAppointments([]);
-        setLoading(false);
-      });
-  }, []);
+  if (!API_KEY || !LOCATION_ID) {
+    return res.status(500).json({ error: "Missing API_KEY or LOCATION_ID in environment." });
+  }
 
-  return (
-    <div style={{
-      fontFamily: "Inter, Arial, sans-serif",
-      background: "#f8fafc",
-      minHeight: "100vh",
-      padding: 0,
-      margin: 0
-    }}>
-      <div style={{
-        background: "#fff",
-        padding: "24px 32px",
-        borderBottom: "1px solid #ececec"
-      }}>
-        <div style={{ fontSize: 32, fontWeight: 700 }}>
-          Appointments
-        </div>
-      </div>
-      <div style={{
-        maxWidth: 800,
-        margin: "32px auto",
-        background: "#fff",
-        borderRadius: 12,
-        boxShadow: "0 1px 5px rgba(30,34,90,0.05)",
-        padding: "24px"
-      }}>
-        {loading ? (
-          <div>Loading appointments...</div>
-        ) : (
-          <>
-            {appointments.length === 0 ? (
-              <div style={{ color: "#888" }}>No appointments found.</div>
-            ) : (
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {appointments.map((appt, idx) => (
-                  <li key={appt.id || idx} style={{
-                    padding: "16px 0",
-                    borderBottom: idx !== appointments.length - 1 ? "1px solid #ececec" : "none",
-                    display: "flex",
-                    flexDirection: "column"
-                  }}>
-                    <span style={{ fontWeight: 600, fontSize: 18 }}>
-                      {appt.title || appt.name || `Appointment #${idx + 1}`}
-                    </span>
-                    <span style={{ color: "#555", marginTop: 4 }}>
-                      {appt.date ? new Date(appt.date).toLocaleString() : "No date"}
-                    </span>
-                    {appt.client && (
-                      <span style={{ color: "#888", marginTop: 2 }}>
-                        Client: {appt.client}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
+  // Pagination parameters for contacts
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 25;
+
+  try {
+    // 1. Fetch paginated contacts
+    const contactsRes = await fetch(
+      `https://rest.gohighlevel.com/v1/contacts/?locationId=${LOCATION_ID}&limit=${limit}&page=${page}`,
+      {
+        headers: { Authorization: `Bearer ${API_KEY}` },
+      }
+    );
+    if (!contactsRes.ok) {
+      return res.status(contactsRes.status).json({ error: "Failed to fetch contacts" });
+    }
+    const contactsData = await contactsRes.json();
+    const contacts = contactsData.contacts || [];
+
+    // 2. For each contact, fetch their appointments
+    // To avoid rate limits, we can throttle/batch or just fetch sequentially for small batches
+    // For higher scale, consider batching with setTimeout or a queue!
+    let allAppointments = [];
+    for (const contact of contacts) {
+      try {
+        const apptRes = await fetch(
+          `https://rest.gohighlevel.com/v1/contacts/${contact.id}/appointments`,
+          { headers: { Authorization: `Bearer ${API_KEY}` } }
+        );
+        if (!apptRes.ok) continue;
+        const apptData = await apptRes.json();
+        const appts = (apptData.appointments || []).map(appt => ({
+          ...appt,
+          client: contact.name || contact.firstName + " " + contact.lastName || "",
+        }));
+        allAppointments = allAppointments.concat(appts);
+      } catch (e) {
+        // skip if failed for a contact
+      }
+    }
+
+    res.status(200).json({
+      appointments: allAppointments,
+      contactsCount: contacts.length,
+      page,
+      limit,
+      hasMore: contacts.length === limit // likely more contacts available
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Server error", details: e.message });
+  }
 }
