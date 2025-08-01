@@ -1,5 +1,5 @@
 // This API route fetches all contacts in paginated batches,
-// then for each contact, fetches their appointments, and aggregates them.
+// then for each contact, fetches their appointments (actually calendar events), and aggregates them.
 // It supports ?page=1&limit=25 pagination (default 1/25).
 // "Load More" is supported via frontend by incrementing the page param.
 
@@ -29,9 +29,7 @@ export default async function handler(req, res) {
     const contactsData = await contactsRes.json();
     const contacts = contactsData.contacts || [];
 
-    // 2. For each contact, fetch their appointments
-    // To avoid rate limits, we can throttle/batch or just fetch sequentially for small batches
-    // For higher scale, consider batching with setTimeout or a queue!
+    // 2. For each contact, fetch their appointments (calendar events)
     let allAppointments = [];
     for (const contact of contacts) {
       try {
@@ -41,9 +39,10 @@ export default async function handler(req, res) {
         );
         if (!apptRes.ok) continue;
         const apptData = await apptRes.json();
-        const appts = (apptData.appointments || []).map(appt => ({
-          ...appt,
-          client: contact.name || contact.firstName + " " + contact.lastName || "",
+        // FIX: Use 'events' instead of 'appointments'
+        const appts = (apptData.events || []).map(event => ({
+          ...event,
+          client: contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(" ")
         }));
         allAppointments = allAppointments.concat(appts);
       } catch (e) {
